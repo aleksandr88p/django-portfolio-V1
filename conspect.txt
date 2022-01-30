@@ -1,0 +1,162 @@
+Создаем сайт портфолио
+1) в команднйо строке переходим в нужную дирректорию и вводим django-admin startproject personal_portfolio
+2) дописываю project для папки с проектом personal_portfolio_project
+3) здесь мне понадобится два приложения одно для блога, другое для портфолио
+    вводим в терминале в нужной дирректории:
+    - 3.1) python manage.py startapp blog
+    - 3.2) python manage.py startapp portfolio
+    - 3.3) после добавления прилоджения в проект, добавляем его в файл settings.py в
+    INSTALLED_APPS ['blog', 'portfolio']
+4) запускаем сервер, в терминале вводим python manage.py runserver
+5) создаем базовый класс для database. Portfolio>models.py созаем класс наследуем его от models.Model
+так мы создали класс для взаимодействия с базой данных. Модель нужно для таблицы и добавления туда данных.
+это по сути класс который будет таблицей в базе данных
+Теперь атрибуты:
+class Project(models.Model):
+    title = models.CharField(max_length=100) # задаем ограничение для заголовка
+    description = models.CharField(max_length=250) # задаем ограничение для описания
+    image = models.ImageField(upload_to='portfolio/images/') # upload_to в
+    какой папке сохраняются изображения, создастся папка с таким адресом
+    url = models.URLField(blank=True) # так как элементы будут кликабельну и вести куда то (blank=открывать в
+5.1) теперь нужно все это связать с базой данных (когда что то дабавляю или меняю в models.py это называется
+    миграцйией и эти изменения должны пройти миграцию в БД)
+    - вводим python manage.py makemigrations для добавляения созданнйо модели в миграцию
+    - для миграции в терминале вводим python manage.py migrate
+    - создадим таблицу в бд для объектов
+    в папке potfolio>migrations появился файл 0001_initial.py
+    - каждый раз после изменения модели или добавления новой, сохранть и делать миграцию
+5.3) добавим возможность администрироания сайта:
+    - в терминале вводим python manage.py createsuperuser
+    - задаем имя, почту(по желанию), пароль (aleks, aleks)
+    - что бы сменить пароль в терминале вводмим python manage.py changepassword, вводим ник и новый пароль
+    - admin/ дописать в строке поиска что бы войти в админку
+    - в админке можно посмотреть пользователей
+5.4) в приложинии portfolio в файле admin.py можем задать модели для отображения в админке
+    - from .models import Project добавляем модели из текущей папки
+    пишем admin.site.register(Project)
+    - теперь в админке появился проект, моджем добавить там project с нашими полями из модели Project
+    после этого появится папка с images в папке portfolio
+    удаляем её и в settings создаем настроку с адресом для медиа папки
+    в settings.py пишем MEDIA_ROOT = BASE_DIR / 'media'
+    что бы просматривать изображения через админку:
+        MEDIA_URL = задает адрес от куда будут прикрепляться изображения к тем или иным проектам
+        - settings.py внизу пишем MEDIA_URL = '/media/'
+        - в urls.py
+            from django.conf.urls.static import static
+            from django.conf import settings (для импорта наших настроек из сеттингов)
+            urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+6) сейчас работает только страница admin/, добавим простую страницу
+    - в папке с нужным приложением в views.py добавляем импорт from django.http import HttpResponse вариант без шаблона с html
+        и функцию(вьюшку) домашней страницы
+        def home(request):
+        # return HttpResponse("THIS IS MY PORTFOLIO") вариант без шаблона с html
+        return render(request, 'portfolio/home.html') вариант с шаблоном html
+    - в файле urls.py добавляем новый путь который будет привязан к домашней странице(в скобках будут путсые ковычки,
+    вьюшка, и зададим имя
+    в список урлов добавляем path('', views.home, name='home'),
+    - создаем папку для html... в папке приложения создаем папку temoplates>portfolio(имя приложения)>home.html
+    пишем html код
+
+7) реализуем отображение на сайте проектов через шаблоны
+    - возьмем данные проекта из базы данных и отправим их в шаблон, для этого:
+        - импортируем модель проекта from .models import Project
+        - в функцию страницы(вьюшку) пишем projects = Project.objects.all()
+        так импортируем все записи о проектах из базы данных и добавляем их в
+        - теперь в render в return в скобках передаем словарь в шаблон, где ключ это "projects", а згначение список
+        projects который создали в предидущем шаге
+        - в home.html добавляем ссылку на переменную project  вот так {{ projects }} так мы увидим на страние querryset
+        - что бы распоковать этот список пишем подругому и вместо {{ projects }} пишем
+        {% for project in projects %}  - for i in set
+        {{ project }}  - i
+        к project через точку можем обращаться к элементам модели
+        <h2>{{ project.title }}</h2>
+        <p>{{ project.description }}</p>
+        <img src="{{ project.image.url }} ">
+        {% if project.url %}  - если ссылка существует
+        <a href="{{ project.url }}">Link</a>
+        {% endif %}  конец если
+        {% endfor %}  - окончание цикла for
+
+8) добавляем блог:
+    - в urls.py приложения где все urlы, ипортируем include и прописываем путь
+    path('blog/', include('blog.urls')) ('то что в адресе', включает в себя урлы приложения блог(будет искать там))
+    - создаем файл urls.py в приложении blog, делаем импорты и прописываем urlpatterns
+    from django.urls import path
+    from . import views
+    urlpatterns = [
+        path('', views.all_blogs, name='all_blogs'),
+    ]
+    - делаем функцию страницы(вьюшку) в views.py in blog
+    def all_blogs(request):
+    return render(request, 'blog/all_blogs.html')
+
+    - создаем html файл по пути blog>templates>blog>all_blogs.html и пишем html код
+
+8.1) в models.py у приложения blog создаем класс блога
+    class Blog(models.Model):
+    title = models.CharField(max_length=200) # задаем ограничение для заголовка
+    description = models.TextField()
+    date = models.DateField()
+
+    затем в терминале делаем миграцию
+    1. python manage.py makemigrations
+    2. python manage.py migrate
+
+8.2) в файле admin.py приложения blog импортируем модель Blog
+    from .models import Blog
+
+    пишем admin.site.register(Blog)
+8.3) в views.py импортируем модель Blog
+    создаем переменную в вьюшке blogs = Blog.objects.all() вместо all можно использовать order_by('-date') отсортируестя по дате
+    что бы ограничить кол-во постов, после order_by('-date')[:5] так будет только 5 постов
+    и добавляем в ретурн {'blogs': blogs}
+
+8.4) далее в файле html вызываем блоги в цикле {% for %}   {% endfor %}
+
+9) static files нужны для статических изображений, те которые используются на сайте, а не загружаются пользователем
+в приложении создаем папку приложение/static/опять имя приложения напр. portfolio/static/portfolio
+9.1) далее в home.html прописываем команду для размещения фото на сайт
+{% load static %}
+<img src="{% static 'portfolio/for_resume.jpg' %}" width="200px">
+добавим pdf на сайт(моё резюме) для скачки
+<a href="{% static 'portfolio/Pylaev_Aleksandr.pdf' %}">Resume</a>
+
+10)  открытие страниц блога по номеру в поисковой строке
+    - в приложении blog в файл urls.py добавляем path('<int:blog_id>/', views.detail, name='detail'),
+    - в views.py добавляем импорт get_object_or_404, app_name= и добавляем вьюшку
+    app_name = 'blog' # нужно для того если на сайте будет несколько detail
+    def detail(request, blog_id):
+        blog = get_object_or_404(Blog, pk=blog_id) (pk это primary key)
+        return render(request, 'blog/detail.html', {'blog': blog})
+    - создаем detail.html в шаблонах блога с ссылкой <h2>{{ blog.title }}</h2>
+                                                      {{ blog.description }}
+    - В all_blogs.html blog.title оборачиваем в тег <a href="{% url 'blog:detail' blog.id %}"></a>
+    что бы можно было кликать по нему href добаляес ссылку с именем вьюшки и блог id - для порядкового номера
+
+11) что бы сделать ссылку на все блоги с главной страници, в файле home.html добавляем тек <a href=""></a>
+где href="{% url 'blog:all_blogs' %}" так как в уралах блога мы добавили app_name, то обарщаемся по нему и к какому
+файлу
+
+12) добавим заголовок на странице с блогами, где написано сколько я написал статей
+<h2> I added {{ blogs.count }} article{{ blogs.count|pluralize }}</h2>
+pluralize - добавляет букву 's' там где надо
+
+13) настройка форматтириваный вывод даты в html https://docs.djangoproject.com/en/4.0/ref/templates/builtins/#date
+в all_blogs.html и ограничение символов в description до того как перейти по ссылке
+ {{ blog.description|truncatechars:100 }}.... В description можно использовать html теги(например жирный шрифт, курсив,
+ парагшраф и тд) для этого перед truncatechars добалвяем safe|
+
+14) что бы в админке отображались не номера проектов, а их заголовки. Переходим в файл models.py
+создаем в классе функцию
+def __str__(self):
+    return self.title
+
+15) если используется одни и теже бутсрап шаблоны, то лучше сделать базовый шаблон для всех страниц
+создаем base.html в templates там где главная страница и помещаем туда только код бутсрап который должен присутсвовать
+на нужных страницах. далее нужен тег block content делается он так {% block content %} {% endblock %}
+На странице где должен примениться этот шаблон
+пишем вверху
+{% extends "portfolio/base.html" %}
+{% block content %}
+а внизу {% endblock %}
